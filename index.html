@@ -3,6 +3,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>会务系统</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 微信JS-SDK -->
+    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js"></script>
     <!-- 使用多个CDN源作为备选，优先使用更快的源 -->
     <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.13.0/dist/av-min.js" id="leancloud-sdk"></script>
@@ -219,6 +221,21 @@
                             window.switchSlide(0);
                             console.log('🎯 轮播图已设置为索引0');
                         }
+                        
+                        // 立即检查用户高亮
+                        setTimeout(() => {
+                            if (typeof highlightUserInCarousel === 'function') {
+                                console.log('🚀 立即执行用户高亮检查');
+                                highlightUserInCarousel();
+                            } else {
+                                console.log('⚠️ highlightUserInCarousel 函数未定义，尝试延迟重试');
+                                setTimeout(() => {
+                                    if (typeof highlightUserInCarousel === 'function') {
+                                        highlightUserInCarousel();
+                                    }
+                                }, 300);
+                            }
+                        }, 200);
                     }, 50);
                 }
                 
@@ -671,7 +688,7 @@
                     <div id="carousel-container" class="relative p-0 m-0">
                         <div id="simple-carousel" class="overflow-hidden transition-all duration-300 p-0 m-0 relative">
                             <!-- Left arrow -->
-                            <button onclick="window.switchSlide(currentSlide &gt; 0 ? currentSlide - 1 : dots.length - 1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center z-10 hover:bg-black/70 transition-colors">
+                            <button onclick="window.switchSlide(currentSlide > 0 ? currentSlide - 1 : dots.length - 1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center z-10 hover:bg-black/70 transition-colors">
                                 <i data-lucide="chevron-left" class="w-6 h-6"></i>
                             </button>
                             
@@ -685,7 +702,7 @@
                             </div>
                             
                             <!-- Right arrow -->
-                            <button onclick="window.switchSlide(currentSlide &lt; dots.length - 1 ? currentSlide + 1 : 0)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center z-10 hover:bg-black/70 transition-colors">
+                            <button onclick="window.switchSlide(currentSlide < dots.length - 1 ? currentSlide + 1 : 0)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center z-10 hover:bg-black/70 transition-colors">
                                 <i data-lucide="chevron-right" class="w-6 h-6"></i>
                             </button>
                         </div>
@@ -832,6 +849,288 @@
 
     <script>
         lucide.createIcons();
+
+        // 导航到酒店函数
+        function navigateToHotel() {
+            console.log('🔍 开始处理导航请求...');
+            
+            // 获取当前用户信息
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const hotelName = currentUser ? currentUser.hotel : '海口市星海湾铂尔曼酒店';
+            const hotelAddress = '海南省海口市美兰区新埠岛西苑路21号';
+            const lat = 20.045196; // 酒店纬度
+            const lng = 110.358844; // 酒店经度
+            
+            console.log(`🏨 目标酒店: ${hotelName}`);
+            console.log(`📍 酒店地址: ${hotelAddress}`);
+            console.log(`📌 坐标: ${lat}, ${lng}`);
+            
+            // 检测是否在微信环境中
+            const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+            console.log(`📱 是否在微信环境: ${isWeChat}`);
+            
+            if (isWeChat) {
+                console.log('💡 检测到微信环境，尝试使用微信内置导航');
+                
+                // 检查微信JS-SDK是否加载
+                if (typeof wx !== 'undefined') {
+                    console.log('✅ 微信JS-SDK已加载，配置并调用微信导航');
+                    
+                    // 配置微信JS-SDK（这里使用简化配置，实际项目中需要后端签名）
+                    wx.config({
+                        debug: false,
+                        appId: 'wx1234567890', // 实际使用时需要替换为真实的appId
+                        timestamp: new Date().getTime(),
+                        nonceStr: 'conference' + Math.random().toString(36).substr(2, 9),
+                        signature: 'signature', // 实际使用时需要后端生成
+                        jsApiList: ['openLocation', 'getLocation']
+                    });
+                    
+                    wx.ready(function() {
+                        console.log('✅ 微信JS-SDK配置成功');
+                        
+                        try {
+                            // 直接调用微信内置导航
+                            wx.openLocation({
+                                latitude: lat,
+                                longitude: lng,
+                                name: hotelName,
+                                address: hotelAddress,
+                                scale: 18,
+                                infoUrl: ''
+                            });
+                            console.log('🚀 微信导航调用成功');
+                        } catch (error) {
+                            console.error('❌ 微信导航调用失败:', error);
+                            // 降级到备选方案
+                            showNavigationOptions(hotelName, hotelAddress);
+                        }
+                    });
+                    
+                    wx.error(function(res) {
+                        console.error('❌ 微信JS-SDK配置失败:', res);
+                        // 降级到备选方案
+                        showNavigationOptions(hotelName, hotelAddress);
+                    });
+                    
+                } else {
+                    console.warn('⚠️ 微信JS-SDK未加载，使用备选方案');
+                    // 降级到备选方案
+                    showNavigationOptions(hotelName, hotelAddress);
+                }
+                
+            } else {
+                console.log('🌐 非微信环境，直接尝试打开地图应用');
+                
+                // 非微信环境，尝试直接打开高德地图
+                const amapUrl = `https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(hotelName)}&src=mypage&coordinate=gaode&callnative=1`;
+                
+                // 尝试打开地图应用，如果失败则显示网页版
+                window.location.href = amapUrl;
+                
+                // 2秒后检查是否成功跳转，如果没成功则显示备选方案
+                setTimeout(() => {
+                    showNavigationOptions(hotelName, hotelAddress);
+                }, 2000);
+            }
+        }
+
+        // 显示导航选项弹窗
+        function showNavigationOptions(hotelName, hotelAddress) {
+            console.log('📋 显示导航选项...');
+            
+            // 移除已存在的弹窗
+            const existingModal = document.getElementById('navigation-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // 创建弹窗HTML
+            const modalHTML = `
+                <div id="navigation-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-2xl p-6 w-[90%] max-w-md mx-4">
+                        <div class="text-center mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">选择导航方式</h3>
+                            <p class="text-gray-600 text-sm">请选择您偏好的地图应用进行导航</p>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <!-- 高德地图 -->
+                            <button onclick="openMapApp('amap', '${encodeURIComponent(hotelName)}', '${encodeURIComponent(hotelAddress)}')" 
+                                    class="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 px-4 rounded-xl transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+                                        <span class="text-white font-bold">高德</span>
+                                    </div>
+                                    <span class="font-medium">高德地图</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                            </button>
+                            
+                            <!-- 百度地图 -->
+                            <button onclick="openMapApp('baidu', '${encodeURIComponent(hotelName)}', '${encodeURIComponent(hotelAddress)}')" 
+                                    class="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 px-4 rounded-xl transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                                        <span class="text-white font-bold">百度</span>
+                                    </div>
+                                    <span class="font-medium">百度地图</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                            </button>
+                            
+                            <!-- 腾讯地图 -->
+                            <button onclick="openMapApp('tencent', '${encodeURIComponent(hotelName)}', '${encodeURIComponent(hotelAddress)}')" 
+                                    class="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 px-4 rounded-xl transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                                        <span class="text-white font-bold">腾讯</span>
+                                    </div>
+                                    <span class="font-medium">腾讯地图</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- 提示信息 -->
+                        <div class="mt-6 p-4 bg-yellow-50 rounded-lg">
+                            <div class="flex items-start">
+                                <i data-lucide="info" class="w-5 h-5 text-yellow-500 mr-2 mt-0.5"></i>
+                                <p class="text-sm text-gray-700">
+                                    如果点击后没有反应，请复制酒店地址在地图应用中搜索：<br>
+                                    <span class="font-medium">${hotelAddress}</span>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- 微信导航按钮 -->
+                        <button onclick="useWeChatNavigation('${encodeURIComponent(hotelName)}', '${encodeURIComponent(hotelAddress)}')" 
+                                class="w-full mt-4 bg-green-600 text-white py-3 px-4 rounded-xl hover:bg-green-700 transition-colors font-medium">
+                            <div class="flex items-center justify-center">
+                                <i data-lucide="map-pin" class="w-5 h-5 mr-2"></i>
+                                <span>使用微信内置导航</span>
+                            </div>
+                        </button>
+                                    <span class="font-medium">${hotelAddress}</span>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- 取消按钮 -->
+                        <button onclick="closeNavigationModal()" 
+                                class="w-full mt-6 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-colors">
+                            取消
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // 添加弹窗到页面
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // 重新渲染图标
+            lucide.createIcons();
+            
+            console.log('✅ 导航选项弹窗已显示');
+        }
+
+        // 打开地图应用
+        function openMapApp(mapType, hotelName, hotelAddress) {
+            console.log(`🚀 尝试打开${mapType}地图...`);
+            
+            let mapUrl = '';
+            const lat = '20.045196'; // 酒店纬度
+            const lng = '110.358844'; // 酒店经度
+            
+            try {
+                switch (mapType) {
+                    case 'amap':
+                        // 高德地图
+                        mapUrl = `https://uri.amap.com/marker?position=${lng},${lat}&name=${hotelName}&src=mypage&coordinate=gaode&callnative=1`;
+                        break;
+                    case 'baidu':
+                        // 百度地图（需要转换坐标系）
+                        mapUrl = `https://api.map.baidu.com/marker?location=${lat},${lng}&title=${hotelName}&content=${hotelAddress}&output=html&src=mypage`;
+                        break;
+                    case 'tencent':
+                        // 腾讯地图
+                        mapUrl = `https://apis.map.qq.com/uri/v1/marker?marker=coord:${lat},${lng};title:${hotelName};addr:${hotelAddress}`;
+                        break;
+                }
+                
+                console.log(`🌏 地图URL: ${mapUrl}`);
+                
+                // 尝试打开地图应用
+                window.location.href = mapUrl;
+                
+                // 2秒后关闭弹窗
+                setTimeout(() => {
+                    closeNavigationModal();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('❌ 打开地图应用失败:', error);
+                
+                // 显示错误提示
+                alert('打开地图应用失败，请手动搜索酒店地址：' + decodeURIComponent(hotelAddress));
+                closeNavigationModal();
+            }
+        }
+
+        // 关闭导航弹窗
+        function closeNavigationModal() {
+            console.log('❌ 关闭导航弹窗');
+            
+            const modal = document.getElementById('navigation-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // 使用微信导航
+        function useWeChatNavigation(hotelName, hotelAddress) {
+            console.log('🔄 使用微信内置导航...');
+            
+            const lat = 20.045196; // 酒店纬度
+            const lng = 110.358844; // 酒店经度
+            
+            hotelName = decodeURIComponent(hotelName);
+            hotelAddress = decodeURIComponent(hotelAddress);
+            
+            console.log(`🏨 目标酒店: ${hotelName}`);
+            console.log(`📍 酒店地址: ${hotelAddress}`);
+            
+            if (typeof wx !== 'undefined') {
+                console.log('✅ 调用微信openLocation接口');
+                
+                try {
+                    wx.openLocation({
+                        latitude: lat,
+                        longitude: lng,
+                        name: hotelName,
+                        address: hotelAddress,
+                        scale: 18,
+                        infoUrl: ''
+                    });
+                    
+                    console.log('🚀 微信导航调用成功');
+                    closeNavigationModal();
+                    
+                } catch (error) {
+                    console.error('❌ 微信导航调用失败:', error);
+                    
+                    if (error.message.includes('function not exist')) {
+                        alert('微信导航功能不可用，请尝试其他导航方式');
+                    } else {
+                        alert('导航失败，请重试');
+                    }
+                }
+                
+            } else {
+                console.error('❌ 微信JS-SDK未加载');
+                alert('微信环境异常，请刷新页面重试');
+            }
+        }
 
         // Define switchSlide globally to fix the ReferenceError
         let currentSlide = 0;
@@ -1384,6 +1683,20 @@
         }
         
         console.log('✅ 全局登录函数已注册');
+        
+        // 页面加载完成后检查轮播图中的用户名
+        setTimeout(() => {
+            const cachedUserName = localStorage.getItem('cachedUserName');
+            if (cachedUserName) {
+                console.log('🎯 页面加载完成，检查轮播图用户名高亮');
+                // 延迟调用以确保DOM完全加载
+                setTimeout(() => {
+                    if (typeof highlightUserInCarousel === 'function') {
+                        highlightUserInCarousel();
+                    }
+                }, 500);
+            }
+        }, 1000);
 
 
 
@@ -1443,6 +1756,58 @@
             console.log('幻灯片容器:', slidesContainer);
             console.log('指示器圆点数量:', dots.length);
 
+            // 高亮包含用户名的轮播图
+            function highlightUserInCarousel() {
+                console.log('🔍 开始检查轮播图中是否包含用户名');
+                
+                // 获取当前登录用户信息
+                const cachedUserName = localStorage.getItem('cachedUserName');
+                if (!cachedUserName) {
+                    console.log('ℹ️ 未找到缓存的用户名，跳过高亮');
+                    return;
+                }
+                
+                console.log('👤 当前登录用户:', cachedUserName);
+                
+                // 获取所有轮播图项
+                const slideItems = slidesContainer.querySelectorAll('.flex-shrink-0');
+                slideItems.forEach((item, index) => {
+                    const img = item.querySelector('img');
+                    if (img && img.alt) {
+                        console.log(`📊 检查轮播图 ${index} 标题: "${img.alt}"`);
+                        
+                        // 检查图片alt属性中是否包含用户名
+                        if (img.alt.includes(cachedUserName)) {
+                            console.log(`✅ 在轮播图 ${index} 中找到用户名 "${cachedUserName}"`);
+                            
+                            // 添加高亮效果
+                            item.style.position = 'relative';
+                            
+                            // 创建高亮背景
+                            const highlightBg = document.createElement('div');
+                            highlightBg.className = 'absolute inset-0 bg-yellow-300 bg-opacity-50 z-0';
+                            highlightBg.style.pointerEvents = 'none'; // 不影响点击
+                            
+                            // 插入到图片下方
+                            item.insertBefore(highlightBg, img);
+                            
+                            // 确保图片在上方
+                            img.style.position = 'relative';
+                            img.style.zIndex = '1';
+                            
+                            // 添加动画效果
+                            highlightBg.style.animation = 'pulse 2s infinite';
+                            
+                            // 高亮对应的指示器
+                            if (dots[index]) {
+                                dots[index].classList.add('ring-4', 'ring-yellow-400', 'ring-opacity-75');
+                                console.log(`✅ 高亮指示器 ${index}`);
+                            }
+                        }
+                    }
+                });
+            }
+
             function updateCarousel() {
                 console.log('updateCarousel 方法被调用。当前幻灯片:', currentSlide);
                 slidesContainer.style.transform = `translateX(-${currentSlide * 100}%)`;
@@ -1456,7 +1821,31 @@
                         dot.classList.remove('bg-blue-500');
                         dot.classList.add('bg-gray-300');
                     }
-        
+                });
+                
+                // 每次更新轮播图后检查是否需要高亮
+                setTimeout(() => {
+                    if (typeof highlightUserInCarousel === 'function') {
+                        highlightUserInCarousel();
+                    } else {
+                        console.warn('⚠️ highlightUserInCarousel 函数未定义');
+                    }
+                }, 100);
+            }
+                    } else {
+                        dot.classList.remove('bg-blue-500');
+                        dot.classList.add('bg-gray-300');
+                    }
+                });
+                
+                // 每次更新轮播图后检查是否需要高亮
+                setTimeout(() => {
+                    if (typeof highlightUserInCarousel === 'function') {
+                        highlightUserInCarousel();
+                    } else {
+                        console.warn('⚠️ highlightUserInCarousel 函数未定义');
+                    }
+                }, 100);
             }
 
             // Add click listeners to dots
