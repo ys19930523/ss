@@ -1,0 +1,1933 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会务系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 微信JS-SDK -->
+    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js"></script>
+    <!-- 使用多个CDN源作为备选，优先使用更快的源 -->
+    <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.13.0/dist/av-min.js" id="leancloud-sdk"></script>
+    <script>
+        // 备用CDN源，当主CDN加载失败时使用
+        const backupCDNs = [
+            'https://unpkg.com/leancloud-storage@4.13.0/dist/av-min.js',
+            'https://cdn.bootcdn.net/ajax/libs/leancloud-storage/4.13.0/av-min.js'
+        ];
+        
+        // 检测SDK是否成功加载
+        function checkSDKLoaded() {
+            if (typeof AV !== 'undefined') {
+                console.log('✅ LeanCloud SDK加载成功');
+                return true;
+            }
+            console.warn('❌ LeanCloud SDK未加载成功');
+            return false;
+        }
+        
+        // 如果当前脚本加载失败，尝试备用CDN
+        document.getElementById('leancloud-sdk').onerror = function() {
+            console.warn('⚠️ 主CDN加载失败，尝试备用CDN');
+            loadBackupSDK();
+        };
+        
+        // 加载备用SDK
+        let currentBackupIndex = 0;
+        function loadBackupSDK() {
+            if (currentBackupIndex >= backupCDNs.length) {
+                console.error('❌ 所有CDN源都加载失败');
+                return;
+            }
+            
+            const backupCDN = backupCDNs[currentBackupIndex++];
+            console.log(`🔄 尝试备用CDN: ${backupCDN}`);
+            
+            const script = document.createElement('script');
+            script.src = backupCDN;
+            script.onload = function() {
+                if (checkSDKLoaded()) {
+                    console.log('✅ 备用CDN加载成功');
+                    // SDK加载成功后初始化
+                    initLeanCloud();
+                }
+            };
+            script.onerror = function() {
+                console.warn(`❌ 备用CDN ${backupCDN} 加载失败`);
+                loadBackupSDK();
+            };
+            document.head.appendChild(script);
+        }
+        
+        // 页面加载完成后检查SDK状态
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                if (!checkSDKLoaded()) {
+                    console.warn('⚠️ 页面加载完成但SDK未加载，尝试备用CDN');
+                    loadBackupSDK();
+                }
+            }, 2000); // 2秒后检查，给足够时间加载
+        });
+    </script>
+    <script>
+        // LeanCloud配置信息
+        const LEANCLOUD_CONFIG = {
+            appId: 'LvwXAtkZBt8RI7UN8Jm7R5BL-gzGzoHsz',
+            appKey: 'zAMmBWOV5pnmH3KRsCvrRfJL',
+            serverURL: 'https://lvwxatkz.lc-cn-n1-shared.com'
+        };
+
+        // 初始化LeanCloud函数
+        function initLeanCloud() {
+            try {
+                if (typeof AV !== 'undefined') {
+                    AV.init({
+                        appId: LEANCLOUD_CONFIG.appId,
+                        appKey: LEANCLOUD_CONFIG.appKey,
+                        serverURL: LEANCLOUD_CONFIG.serverURL
+                    });
+                    console.log("✅ LeanCloud初始化成功");
+                    
+                    // 预加载测试数据
+                    preloadTestData();
+                    
+                    return true;
+                } else {
+                    console.warn("⚠️ LeanCloud SDK未加载");
+                    return false;
+                }
+            } catch (error) {
+                console.error("❌ LeanCloud初始化失败:", error);
+                return false;
+            }
+        }
+        
+        // 立即尝试初始化LeanCloud
+        if (typeof AV !== 'undefined') {
+            initLeanCloud();
+        } else {
+            console.log("⏳ 等待LeanCloud SDK加载...");
+        }
+        
+        // 预加载测试数据到本地缓存
+        function preloadTestData() {
+            // 添加更多测试用户，确保跨设备都能登录
+            const testUsers = [
+                { name: '测试', phone: '13800138000', seatNumber: 'A区 01', mealNumber: '第 1 桌', hotel: '酒店A' },
+                { name: '张三', phone: '13900139000', seatNumber: 'B区 02', mealNumber: '第 2 桌', hotel: '酒店B' },
+                { name: '李四', phone: '13700137000', seatNumber: 'C区 03', mealNumber: '第 3 桌', hotel: '酒店A' },
+                { name: '王五', phone: '13600136000', seatNumber: 'A区 04', mealNumber: '第 4 桌', hotel: '酒店B' },
+                { name: '赵六', phone: '13500135000', seatNumber: 'B区 05', mealNumber: '第 5 桌', hotel: '酒店A' },
+                { name: '钱七', phone: '13400134000', seatNumber: 'C区 06', mealNumber: '第 6 桌', hotel: '酒店B' },
+                { name: '孙八', phone: '13300133000', seatNumber: 'A区 07', mealNumber: '第 7 桌', hotel: '酒店A' },
+                { name: '周九', phone: '13200132000', seatNumber: 'B区 08', mealNumber: '第 8 桌', hotel: '酒店B' },
+                { name: '吴十', phone: '13100131000', seatNumber: 'C区 09', mealNumber: '第 9 桌', hotel: '酒店A' }
+            ];
+            
+            // 强制更新本地缓存，确保所有测试用户都可用
+            localStorage.setItem('conferenceUsers', JSON.stringify(testUsers));
+            console.log(`✅ 已预加载 ${testUsers.length} 个测试用户到本地缓存`);
+            
+            // 显示测试账号提示
+            console.log('🎯 测试账号信息:');
+            testUsers.forEach((user, index) => {
+                console.log(`${index + 1}. 姓名: ${user.name}, 手机号: ${user.phone}`);
+            });
+        }
+        
+        // 页面加载完成后预加载测试数据（无论SDK是否加载成功）
+        function ensureTestDataLoaded() {
+            // 确保测试数据加载，即使SDK加载失败也能正常使用
+            preloadTestData();
+            
+            // 如果SDK已经加载，尝试初始化
+            if (typeof AV !== 'undefined' && !window.leanCloudInitialized) {
+                window.leanCloudInitialized = true;
+                initLeanCloud();
+            }
+        }
+        
+        // 页面加载完成后立即预加载测试数据
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', ensureTestDataLoaded);
+        } else {
+            ensureTestDataLoaded();
+        }
+
+        // 全局页面切换函数
+        window.showPage = function(pageId) {
+            console.log('📱 切换页面到:', pageId);
+            
+            // 隐藏所有页面
+            const pages = document.querySelectorAll('#app > div');
+            pages.forEach(page => {
+                if (page.id && page.id.endsWith('-page')) {
+                    page.classList.add('hidden');
+                }
+            });
+            
+            // 显示目标页面
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) {
+                targetPage.classList.remove('hidden');
+                console.log('✅ 页面已切换到:', pageId);
+                
+                // 如果是座位/餐席/酒店页面，加载用户信息
+                if (pageId === 'seat-food-hotel-page') {
+                    setTimeout(() => {
+                        const cachedUserName = localStorage.getItem('cachedUserName');
+                        if (cachedUserName) {
+                            console.log('🔄 加载用户信息:', cachedUserName);
+                            const userData = localStorage.getItem('currentUser');
+                            if (userData) {
+                                const user = JSON.parse(userData);
+                                updateUserInfo(user);
+                            }
+                        }
+                    }, 100);
+                }
+                
+                // 如果是会议日程页面，确保页面滚动到顶部并显示索引0的轮播图
+                if (pageId === 'meeting-schedule-page') {
+                    // 立即执行滚动
+                    console.log('📋 开始强制滚动会议日程页面到顶部...');
+                    
+                    // 方法1：标准滚动
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                    
+                    // 方法2：直接设置滚动位置
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                    
+                    // 方法3：获取所有可滚动元素并设置
+                    const scrollableElements = document.querySelectorAll('main, section, div[class*="overflow"]');
+                    scrollableElements.forEach(el => {
+                        if (el.scrollTop !== undefined) {
+                            el.scrollTop = 0;
+                            console.log('🔄 已重置滚动元素:', el.tagName, el.className);
+                        }
+                    });
+                    
+                    // 方法4：使用requestAnimationFrame确保在下一帧执行
+                    requestAnimationFrame(() => {
+                        window.scrollTo({ top: 0, behavior: 'auto' });
+                        document.documentElement.scrollTop = 0;
+                        document.body.scrollTop = 0;
+                        console.log('🎯 强制滚动完成');
+                    });
+                    
+                    // 设置轮播图为索引0
+                    setTimeout(() => {
+                        if (typeof window.switchSlide === 'function') {
+                            window.switchSlide(0);
+                            console.log('🎯 轮播图已设置为索引0');
+                        }
+                        
+                        // 立即检查用户高亮
+                        setTimeout(() => {
+                            if (typeof window.highlightUserInCarousel === 'function') {
+                                console.log('🚀 立即执行用户高亮检查');
+                                highlightUserInCarousel();
+                            } else {
+                                console.log('⚠️ highlightUserInCarousel 函数未定义，尝试延迟重试');
+                                setTimeout(() => {
+                                    if (typeof window.highlightUserInCarousel === 'function') {
+                                        window.highlightUserInCarousel();
+                                    }
+                                }, 300);
+                            }
+                        }, 200);
+                    }, 50);
+                }
+                
+                // 如果是座位/餐席/酒店页面，确保页面滚动到顶部
+                if (pageId === 'seat-food-hotel-page') {
+                    // 立即执行滚动
+                    console.log('📍 开始强制滚动座位/餐席/酒店页面到顶部...');
+                    
+                    // 方法1：标准滚动
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                    
+                    // 方法2：直接设置滚动位置
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                    
+                    // 方法3：获取所有可滚动元素并设置
+                    const scrollableElements = document.querySelectorAll('main, section, div[class*="overflow"]');
+                    scrollableElements.forEach(el => {
+                        if (el.scrollTop !== undefined) {
+                            el.scrollTop = 0;
+                            console.log('🔄 已重置滚动元素:', el.tagName, el.className);
+                        }
+                    });
+                    
+                    // 方法4：使用requestAnimationFrame确保在下一帧执行
+                    requestAnimationFrame(() => {
+                        window.scrollTo({ top: 0, behavior: 'auto' });
+                        document.documentElement.scrollTop = 0;
+                        document.body.scrollTop = 0;
+                        console.log('🎯 座位/餐席/酒店页面强制滚动完成');
+                    });
+                }
+            } else {
+                console.error('❌ 未找到页面:', pageId);
+            }
+        };
+        
+        // 全局登录函数 - 提前定义确保可访问
+        window.handleLoginClick = async function() {
+            console.log('🎯 全局登录函数被调用，开始处理登录请求');
+            console.log('🔍 检查LeanCloud SDK状态:', typeof AV !== 'undefined' ? '已加载' : '未加载');
+            
+            const nameInput = document.getElementById('name-input');
+            const errorMessage = document.getElementById('error-message');
+            const loginButton = document.getElementById('login-button');
+            
+            if (!nameInput) {
+                console.error('❌ 未找到姓名输入框');
+                return;
+            }
+            
+            if (!errorMessage) {
+                console.error('❌ 未找到错误提示元素');
+            }
+            
+            if (!loginButton) {
+                console.error('❌ 未找到登录按钮元素');
+                return;
+            }
+            
+            console.log('✅ 所有必要元素都已找到');
+            
+            const name = nameInput.value.trim();
+            console.log('📋 输入的姓名:', name);
+            
+            // 隐藏错误信息
+            if (errorMessage) {
+                errorMessage.classList.add('hidden');
+            }
+            
+            if (!name) {
+                console.log('❌ 姓名为空');
+                if (errorMessage) {
+                    errorMessage.textContent = '请输入姓名';
+                    errorMessage.classList.remove('hidden');
+                    errorMessage.style.display = 'block';
+                }
+                return;
+            }
+            
+            try {
+                // 显示加载状态
+                loginButton.textContent = '登录中...';
+                loginButton.disabled = true;
+                
+                // 先从本地缓存获取用户信息
+                let user = null;
+                const cachedUsers = JSON.parse(localStorage.getItem('conferenceUsers') || '[]');
+                user = cachedUsers.find(u => u.name === name);
+                
+                if (user) {
+                    console.log('✅ 从本地缓存找到用户:', user);
+                } else {
+                    console.log('🔄 本地缓存未找到用户，尝试从LeanCloud获取');
+                    // 尝试从LeanCloud获取用户信息
+                    try {
+                        if (typeof AV !== 'undefined') {
+                            console.log('🌐 开始从LeanCloud查询用户信息，设置超时控制');
+                            
+                            // 设置查询超时控制
+                            const queryPromise = new Promise((resolve, reject) => {
+                                const timeout = setTimeout(() => {
+                                    reject(new Error('查询超时(8秒)，可能是网络连接问题或服务端响应慢'));
+                                }, 8000); // 8秒超时
+                                
+                                const query = new AV.Query('user_list');
+                                query.equalTo('name', name);
+                                
+                                query.find().then(users => {
+                                    clearTimeout(timeout);
+                                    resolve(users);
+                                }).catch(error => {
+                                    clearTimeout(timeout);
+                                    reject(error);
+                                });
+                            });
+                            
+                            const users = await queryPromise;
+                            console.log('📥 LeanCloud查询结果:', users);
+                            
+                            if (users.length > 0) {
+                                const leanCloudUser = users[0];
+                                user = {
+                                    name: leanCloudUser.get('name') || '',
+                                    phone: leanCloudUser.get('phone') || '',
+                                    hotel: leanCloudUser.get('hotel') || '',
+                                    seatNumber: leanCloudUser.get('seatNumber') || '',
+                                    mealNumber: leanCloudUser.get('mealNumber') || ''
+                                };
+                                console.log('✅ 从LeanCloud找到用户:', user);
+                                
+                                // 更新本地缓存
+                                cachedUsers.push(user);
+                                localStorage.setItem('conferenceUsers', JSON.stringify(cachedUsers));
+                                console.log('✅ 已更新本地缓存');
+                            } else {
+                                console.log('ℹ️ LeanCloud未找到用户信息');
+                            }
+                        } else {
+                            console.log('⚠️ LeanCloud SDK未加载，跳过云端查询，使用本地缓存');
+                        }
+                    } catch (cloudError) {
+                        console.error('❌ LeanCloud查询失败:', cloudError);
+                        // 继续使用本地缓存结果
+                    }
+                }
+                
+                if (user) {
+                    // 缓存用户信息
+                    localStorage.setItem('cachedUserName', name);
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                    // 跳转到会议中心
+                    window.showPage('conference-center-page');
+                } else {
+                    console.log('❌ 未找到用户');
+                    if (errorMessage) {
+                        // 显示测试账号提示
+                        errorMessage.innerHTML = `未查到姓名信息，请使用以下测试账号:<br>
+                        测试/13800138000<br>
+                        张三/13900139000<br>
+                        李四/13700137000<br>
+                        王五/13600136000<br>
+                        赵六/13500135000`;
+                        errorMessage.classList.remove('hidden');
+                        errorMessage.style.display = 'block';
+                        errorMessage.style.whiteSpace = 'pre-line';
+                    }
+                }
+            } catch (error) {
+                console.error('❌ 登录失败:', error);
+                if (errorMessage) {
+                    errorMessage.textContent = '查询失败，请检查网络连接后重试';
+                    errorMessage.classList.remove('hidden');
+                    errorMessage.style.display = 'block';
+                }
+            } finally {
+                // 恢复按钮状态
+                if (loginButton) {
+                    loginButton.textContent = '立即登录 / LOGIN';
+                    loginButton.disabled = false;
+                }
+            }
+        };
+        
+        console.log('✅ 全局登录函数已注册');
+        
+        // 更新用户信息显示函数
+        window.updateUserInfo = function(user) {
+            console.log('🔄 更新用户信息显示:', user);
+            
+            // 更新座位信息
+            const userSeatNumber = document.getElementById('user-seat-number');
+            if (userSeatNumber && user.seatNumber) {
+                userSeatNumber.textContent = user.seatNumber;
+                console.log('✅ 座位信息已更新:', user.seatNumber);
+            }
+            
+            // 更新餐席信息
+            const userMealNumber = document.getElementById('user-meal-number');
+            if (userMealNumber && user.mealNumber) {
+                userMealNumber.textContent = user.mealNumber;
+                console.log('✅ 餐席信息已更新:', user.mealNumber);
+            }
+            
+            // 更新酒店信息
+            const hotelSection = document.getElementById('hotel-section');
+            const hotelNavButton = document.getElementById('hotel-nav-button');
+            
+            if (hotelSection && user.hotel) {
+                // 显示整个酒店信息区域
+                hotelSection.classList.remove('hidden');
+                console.log('✅ 酒店信息区域已显示');
+                
+                // 显示酒店导航按钮
+                if (hotelNavButton) {
+                    hotelNavButton.classList.remove('hidden');
+                }
+            } else {
+                // 如果没有酒店信息，隐藏整个酒店信息区域
+                if (hotelSection) {
+                    hotelSection.classList.add('hidden');
+                }
+                console.log('ℹ️ 未设置酒店信息，酒店信息区域已隐藏');
+            }
+        };
+        
+        console.log('✅ 用户信息更新函数已注册');
+        
+        // 全局轮播图控制函数 - 提前定义确保可访问
+        let currentSlide = 0;
+        let slidesContainer, dotsContainer, dots, images;
+        
+        window.switchSlide = function(index) {
+            console.log('🎯 switchSlide 函数被调用，目标索引:', index);
+            currentSlide = index;
+            
+            // Get elements if not already initialized
+            if (!slidesContainer) {
+                slidesContainer = document.getElementById('simple-carousel-slides');
+                dotsContainer = document.getElementById('simple-carousel-dots');
+                dots = dotsContainer.querySelectorAll('button');
+                // 获取轮播项而不是直接获取图片
+                const slideItems = slidesContainer.querySelectorAll('div[class*="flex-shrink-0"]');
+                console.log('📊 找到轮播项数量:', slideItems.length);
+            }
+            
+            if (!slidesContainer || !dotsContainer || !dots.length) {
+                console.error('❌ 轮播图元素未找到');
+                return;
+            }
+            
+            // 使用transform方式切换轮播项
+            const simpleCarousel = document.getElementById('simple-carousel');
+            if (simpleCarousel) {
+                // 获取当前轮播项的图片高度
+                const currentSlideItem = slidesContainer.children[index];
+                if (currentSlideItem) {
+                    const currentImage = currentSlideItem.querySelector('img');
+                    if (currentImage) {
+                        console.log(`🔍 开始计算图片高度，当前索引: ${index}`);
+                        
+                        // 重置轮播容器高度，让浏览器自然计算
+                        simpleCarousel.style.height = 'auto';
+                        console.log(`🔄 重置轮播容器高度为auto`);
+                        
+                        // 强制浏览器重排
+                        simpleCarousel.offsetHeight;
+                        
+                        // 延迟一小段时间确保浏览器完成布局计算
+                        setTimeout(() => {
+                            // 重新获取图片的实际显示高度
+                            const actualHeight = currentImage.offsetHeight;
+                            console.log(`📐 重新获取图片实际显示高度: ${actualHeight}px`);
+                            
+                            // 设置精确的高度
+                            simpleCarousel.style.height = `${actualHeight}px`;
+                            console.log(`✅ 轮播高度已设置为: ${actualHeight}px`);
+                            
+                            // 再次强制重排确保高度生效
+                            simpleCarousel.offsetHeight;
+                        }, 50);
+                    }
+                }
+            }
+            
+            // 更新轮播位置
+            slidesContainer.style.transform = `translateX(-${index * 100}%)`;
+            slidesContainer.style.transition = 'transform 0.3s ease-in-out';
+            
+            // Update dots
+            dots.forEach((dot, i) => {
+                dot.className = i === index 
+                    ? 'w-4 h-4 rounded-full bg-blue-500' 
+                    : 'w-4 h-4 rounded-full bg-gray-300';
+            });
+            
+            console.log(`✅ 轮播已切换到索引 ${index}`);
+        };
+        
+        // Simplified function to update dots position
+        function updateDotsPosition() {
+            if (!slidesContainer || !dotsContainer || !images.length) return;
+            
+            const currentImage = images[currentSlide];
+            const imageHeight = currentImage.offsetHeight;
+            
+            console.log(`📐 更新指示器位置。当前图片索引: ${currentSlide}, 图片高度: ${imageHeight}px`);
+            
+            // Reset any inline styles that might interfere
+            dotsContainer.style.cssText = '';
+            
+            console.log(`✅ 指示器位置已更新`);
+        }
+        
+        console.log('✅ 全局轮播图函数已注册');
+        
+        // 页面加载时检查是否有缓存的用户信息
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔍 检查缓存的用户信息...');
+            const cachedUserName = localStorage.getItem('cachedUserName');
+            const cachedUserData = localStorage.getItem('currentUser');
+            
+            if (cachedUserName && cachedUserData) {
+                console.log('✅ 发现缓存的用户信息:', cachedUserName);
+                try {
+                    const user = JSON.parse(cachedUserData);
+                    // 自动登录，跳转到会议中心
+                    setTimeout(() => {
+                        window.showPage('conference-center-page');
+                        console.log('🚀 自动登录成功，已跳转到会议中心');
+                    }, 500);
+                } catch (error) {
+                    console.error('❌ 解析缓存的用户数据失败:', error);
+                    // 清除损坏的缓存
+                    localStorage.removeItem('cachedUserName');
+                    localStorage.removeItem('currentUser');
+                }
+            } else {
+                console.log('ℹ️ 未发现缓存的用户信息，显示登录页面');
+                // 确保显示登录页面
+                window.showPage('login-page');
+            }
+        });
+    </script>
+    <style>
+        .bg-img {
+            background-image: url('https://s41.ax1x.com/2026/01/06/pZdwNlT.png');
+        }
+        .logo {
+            background-image: url('https://s41.ax1x.com/2025/12/17/pZlGEUP.png');
+        }
+        .title-img {
+            background-image: url('https://s41.ax1x.com/2025/12/17/pZlGEUP.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: left;
+        }
+        #meeting-agenda-carousel .carousel-item img {
+            width: 100% !important;
+            height: auto !important;
+            display: block !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="app" class="max-w-md mx-auto h-screen bg-white shadow-lg">
+        <!-- Login Page -->
+        <div id="login-page" class="h-full bg-img bg-cover flex flex-col items-start justify-start p-8 pt-40">
+            <div class="logo w-full h-48 bg-contain bg-left bg-no-repeat mb-6"></div>
+            <div class="w-full mb-4">
+                <input type="text" id="name-input" placeholder="姓名/NAME" class="w-full bg-white/20 border border-white/40 rounded-lg p-3 text-white placeholder-white/60 focus:outline-none focus:ring-0" value="" onclick="this.value = ''" oninput="document.getElementById('error-message').classList.add('hidden')">
+                <p id="error-message" class="text-red-500 text-sm mt-1 hidden" style="font-size: 14px; color: rgb(250, 2, 2); font-style: normal;">请输入姓名</p>
+            </div>
+            <button id="login-button" class="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition duration-300" onclick="handleLoginClick()">立即登录 / LOGIN</button>
+        </div>
+
+        <!-- Conference Center Page -->
+        <div id="conference-center-page" class="h-full hidden bg-img bg-cover flex flex-col">
+
+            <main class="flex-1 p-4 flex flex-col overflow-y-auto">
+                <div class="title-img w-full h-80 bg-contain bg-left bg-no-repeat mb-8"></div>
+                <div class="space-y-4 flex-1">
+                    <div id="intro-card" class="conference-info rounded-lg overflow-hidden cursor-pointer" data-target="conference-intro-page" onclick="showPage('conference-intro-page')">
+                        <img src="https://s41.ax1x.com/2026/01/06/pZdDRXT.png" alt="会议介绍" class="w-full h-auto">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div id="schedule-card" class="conference-info rounded-lg overflow-hidden cursor-pointer" data-target="meeting-schedule-page" onclick="showPage('meeting-schedule-page')">
+                            <img src="https://s41.ax1x.com/2026/01/06/pZdshFJ.png" alt="会议日程" class="w-full h-auto">
+                        </div>
+                        <div id="route-card" class="conference-info rounded-lg overflow-hidden cursor-pointer" data-target="conference-route-page" onclick="showPage('conference-route-page')">
+                            <img src="https://cdn4.winhlb.com/2026/01/07/695dc78330c3d.png" alt="参会路线" class="w-full h-auto">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div id="seat-card" class="conference-info rounded-lg overflow-hidden cursor-pointer" data-target="seat-food-hotel-page" onclick="showPage('seat-food-hotel-page')">
+                            <img src="https://cdn4.winhlb.com/2026/01/07/695dc7833987c.png" alt="座位/餐席/酒店" class="w-full h-auto">
+                        </div>
+                        <div id="live-card" class="conference-info rounded-lg overflow-hidden cursor-pointer">
+                            <img src="https://s41.ax1x.com/2026/01/06/pZdsWo4.png" alt="图文直播" class="w-full h-auto">
+                        </div>
+                    </div>
+                </div>
+                <div class="text-xs text-white/60 mt-4">
+                    <p style="text-align: left; cursor: pointer;" onclick="showPage('login-page')" class="hover:text-white transition-colors">主办单位：教育部中外人文交流中心</p>
+                    <p style="text-align: left;">联合主办：海南师范大学</p>
+                    <p style="text-align: left;">承办单位：中科浩博国际教育科技(北京)有限公司</p>
+                    <p style="text-align: left;">会议时间：2025年11月20日-21日上午(共1.5天)</p>
+                </div>
+            </main>
+        </div>
+
+        <!-- Conference Intro Page -->
+        <div id="conference-intro-page" class="h-full hidden bg-img bg-cover flex flex-col">
+            <main class="flex-1 p-0 overflow-y-auto">
+                <div class="rounded-lg p-4 text-white">
+                    <img src="https://s41.ax1x.com/2025/12/17/pZlGEUP.png" alt="高层次国际化人才培养创新实践项目年度交流推进会" class="w-3/4 h-auto mb-4">
+                    <div class="flex items-center mb-4">
+                        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center mr-3">
+                            <span class="font-bold">01</span>
+                        </div>
+                        <h3 class="text-2xl font-bold">会议介绍</h3>
+                    </div>
+                    <h3 class="text-lg font-semibold text-blue-300 mb-6">CONFERENCE OVERVIEW</h3>
+                    <div class="text-sm space-y-4">
+                        <p>高层次国际化人才培养创新实践项目于2020年疫情期间正式启动，截目目前已在全国30多个省份开展，万余所中高职院校、近2000所本科院校和80余所研究生培养单位参与其中。为推进该项目深化发展，助力人才培养与国家战略需求精准对接，特举办此次年度交流活动。</p>
+                        <p>为深入贯彻落实党的二十大、二十届二中全会精神，全面贯彻党的教育方针，落实立德树人根本任务，加快建设高质量教育体系，培养造就更多高层次国际化人才，2025高层次国际化人才培养创新实践项目年度交流暨推进会将于2025年1月20日在XX会议中心隆重举行。</p>
+                        <p>本次推进会将聚焦"高层次国际化人才培养"主题，邀请国内外知名专家、学者和行业领袖，通过主题报告、专题研讨、经验分享等形式，共同探讨高层次国际化人才培养的新理念、新方法、新路径，为我国教育现代化和人才强国战略实施贡献智慧和力量。</p>
+                    </div>
+                    <div class="mt-8">
+                        <button class="back-button bg-blue-500 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-600 transition duration-300 text-base w-full" onclick="showPage('conference-center-page')">返回首页</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Meeting Schedule Page -->
+        <div id="meeting-schedule-page" class="h-full hidden bg-img bg-cover flex flex-col">
+            <main class="flex-1 p-0 overflow-y-auto">
+                <div class="rounded-lg p-4 text-white">
+                    <img src="https://s41.ax1x.com/2025/12/17/pZlGEUP.png" alt="会议日程" class="w-3/4 h-auto mb-4">
+                    <div class="flex items-center mb-4">
+                        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center mr-3">
+                            <span class="font-bold">02</span>
+                        </div>
+                        <h3 class="text-2xl font-bold">会议日程</h3>
+                    </div>
+                    <h4 class="text-lg font-semibold text-blue-300 mb-6">MEETING SCHEDULE</h4>
+                </div>
+                <div class="w-full mt-4 px-0 m-0">
+                    <div id="carousel-container" class="relative p-0 m-0">
+                        <div id="simple-carousel" class="overflow-hidden transition-all duration-300 p-0 m-0 relative">
+                            <!-- Left arrow -->
+                            <button onclick="window.switchSlide(currentSlide > 0 ? currentSlide - 1 : dots.length - 1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center z-10 hover:bg-black/70 transition-colors">
+                                <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                            </button>
+                            
+                            <div id="simple-carousel-slides" class="flex transition-transform duration-300 ease-in-out p-0 m-0">
+                                <div class="w-full flex-shrink-0">
+                                    <img src="https://s41.ax1x.com/2026/01/06/pZdsYsf.jpg" alt="会议日程1" class="w-full h-auto block mx-0" onerror="this.onerror=null; this.src='https://picsum.photos/800/400?random=1';">
+                                </div>
+                                <div class="w-full flex-shrink-0">
+                                    <img src="https://s41.ax1x.com/2026/01/06/pZds9ZF.jpg" alt="会议日程2" class="w-full h-auto block mx-0" onerror="this.onerror=null; this.src='https://picsum.photos/800/300?random=2';">
+                                </div>
+                            </div>
+                            
+                            <!-- Right arrow -->
+                            <button onclick="window.switchSlide(currentSlide < dots.length - 1 ? currentSlide + 1 : 0)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center z-10 hover:bg-black/70 transition-colors">
+                                <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                        <!-- Dots are now outside the carousel div to ensure visibility -->
+                        <div id="simple-carousel-dots" class="flex justify-center space-x-2 mt-3">
+                            <button class="w-4 h-4 rounded-full bg-blue-500" data-index="0" onclick="window.switchSlide(0)"></button>
+                            <button class="w-4 h-4 rounded-full bg-gray-300" data-index="1" onclick="window.switchSlide(1)"></button>
+                        </div>
+                    </div>
+                </div>
+                <div id="back-button-container" class="rounded-lg p-6 text-white mt-4">
+                    <div>
+                        <button class="back-button bg-blue-500 text-white font-bold py-3 px-4 rounded-full hover:bg-blue-600 transition duration-300 text-base w-full" onclick="showPage('conference-center-page')">返回首页</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Conference Route Page -->
+        <div id="conference-route-page" class="h-full hidden bg-img bg-cover flex flex-col">
+            <main class="flex-1 p-0 overflow-y-auto">
+                <div class="rounded-lg p-4 text-white">
+
+                    <img src="https://s41.ax1x.com/2025/12/17/pZlGEUP.png" alt="高层次国际化人才培养创新实践项目年度交流推进会" class="w-3/4 h-auto mb-4">
+                    <div class="flex items-center mb-4">
+                        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center mr-3">
+                            <span class="font-bold">03</span>
+                        </div>
+                        <h3 class="text-2xl font-bold">参会路线</h3>
+                    </div>
+                    <h4 class="text-lg font-semibold text-blue-300 mb-6">CONFERENCE ROUTE</h4>
+                    <div class="mb-6">
+                        <img src="https://s41.ax1x.com/2026/01/06/pZdB3R0.png" alt="参会路线地图" class="w-full h-auto rounded-lg">
+                    </div>
+                    <div class="mt-8 flex justify-center">
+                        <button class="bg-blue-500 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-600 transition duration-300 text-base w-full" onclick="navigateToHotel()">立即导航</button>
+                    </div>
+                    <div class="mt-8">
+                        <button class="back-button bg-blue-500 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-600 transition duration-300 text-base w-full" onclick="showPage('conference-center-page')">返回首页</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Image Text Live Page -->
+        <div id="image-text-live-page" class="h-full hidden">
+            <header class="bg-img bg-cover p-4 flex items-center">
+                <button class="back-button text-white mr-4">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+                <h1 class="text-xl font-bold text-white">图文直播</h1>
+            </header>
+            <main class="h-[calc(100%-64px)] p-4 overflow-y-auto">
+                <div class="bg-white rounded-lg p-4 shadow-md">
+                    <div class="text-center text-gray-500">
+                        <i data-lucide="video" class="w-16 h-16 mx-auto mb-4"></i>
+                        <p>直播尚未开始，请稍后再试。</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Seat Food Hotel Page -->
+        <div id="seat-food-hotel-page" class="h-full hidden bg-img bg-cover flex flex-col">
+            <main class="flex-1 p-0 overflow-y-auto">
+                <div class="rounded-lg p-4 text-white">
+                    <img src="https://s41.ax1x.com/2025/12/17/pZlGEUP.png" alt="高层次国际化人才培养创新实践项目年度交流推进会" class="w-3/4 h-auto mb-4">
+                    <div class="flex items-center mb-4">
+                        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center mr-3">
+                            <span class="font-bold">04</span>
+                        </div>
+                        <h3 class="text-2xl font-bold">座位/餐席/酒店</h3>
+                    </div>
+                    <h4 class="text-lg font-semibold text-blue-300 mb-6">SEAT/MEAL/ACCOMMODATION</h4>
+                    
+                    <!-- Meeting Seat Section -->
+                    <div class="mb-8">
+                        <div class="flex items-center mb-4">
+                            <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
+                                <span class="font-bold text-xs">01</span>
+                            </div>
+                            <h5 class="text-xl font-bold">会议坐席</h5>
+                        </div>
+                        <div class="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+                            <img src="https://cdn4.winhlb.com/2026/01/07/695dd0ccc95eb.jpg" alt="会议坐席" class="w-full h-auto rounded-lg mb-4">
+                            <p class="text-center text-lg font-semibold hidden" id="meeting-seat-info">1F 珍珠厅</p>
+                            <p class="text-center text-2xl font-bold mt-2 text-yellow-300" id="user-seat-number" style="color: rgb(237, 236, 230);">A区 01</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Lunch Seat Section -->
+                    <div class="mb-8">
+                        <div class="flex items-center mb-4">
+                            <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
+                                <span class="font-bold text-xs">02</span>
+                            </div>
+                            <h5 class="text-xl font-bold">午餐坐席</h5>
+                        </div>
+                        <div class="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+                            <img src="https://cdn4.winhlb.com/2026/01/07/695dd3121792b.jpg" alt="午餐坐席" class="w-full h-auto rounded-lg mb-4">
+                            <p class="text-center text-lg font-semibold hidden" id="lunch-seat-info">酒店二楼 - 星悦阁中餐厅</p>
+                            <p class="text-center text-2xl font-bold mt-2 text-yellow-300" id="user-meal-number" style="color: rgb(242, 242, 240);">第 1 桌</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Hotel Info Section -->
+                    <div id="hotel-section" class="mb-8 hidden">
+                        <div class="flex items-center mb-4">
+                            <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
+                                <span class="font-bold text-xs">03</span>
+                            </div>
+                            <h5 class="text-xl font-bold">酒店信息</h5>
+                        </div>
+                        <div class="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+                            <img src="https://cdn4.winhlb.com/2026/01/07/695dd3e214c38.png" alt="酒店A" class="w-full h-auto rounded-lg mb-4">
+                           
+
+                            <button id="hotel-nav-button" class="w-full bg-blue-500 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-600 transition duration-300 mt-4 text-base" onclick="navigateToHotel()">立即导航</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8">
+                        <button class="back-button bg-blue-500 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-600 transition duration-300 text-base w-full" onclick="showPage('conference-center-page')">返回首页</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Hotel Map Page -->
+        <div id="hotel-map-page" class="h-full hidden">
+            <header class="bg-img bg-cover p-4 flex items-center">
+                <button class="back-button text-white mr-4">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+                <h1 class="text-xl font-bold text-white">酒店地图</h1>
+            </header>
+            <main class="h-[calc(100%-64px)] p-4 overflow-y-auto">
+                <div class="bg-white rounded-lg p-4 shadow-md">
+                    <img src="https://s41.ax1x.com/2025/12/17/pZlGEUP.png" alt="海口星湾铂尔曼酒店地图" class="w-full h-auto rounded-lg">
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // 导航到酒店函数
+        function navigateToHotel() {
+            console.log('🔍 开始处理导航请求...');
+            
+            // 获取当前用户信息
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const hotelName = currentUser ? currentUser.hotel : '海口市星海湾铂尔曼酒店';
+            const hotelAddress = '海南省海口市美兰区新埠岛西苑路21号';
+            const lat = 20.045196; // 酒店纬度
+            const lng = 110.358844; // 酒店经度
+            
+            console.log(`🏨 目标酒店: ${hotelName}`);
+            console.log(`📍 酒店地址: ${hotelAddress}`);
+            console.log(`📌 坐标: ${lat}, ${lng}`);
+            
+            // 检测是否在微信环境中
+            const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+            console.log(`📱 是否在微信环境: ${isWeChat}`);
+            
+            if (isWeChat) {
+                console.log('💡 检测到微信环境，尝试使用微信内置导航');
+                
+                // 检查微信JS-SDK是否加载
+                if (typeof wx !== 'undefined') {
+                    console.log('✅ 微信JS-SDK已加载，配置并调用微信导航');
+                    
+                    // 配置微信JS-SDK（这里使用简化配置，实际项目中需要后端签名）
+                    wx.config({
+                        debug: false,
+                        appId: 'wx1234567890', // 实际使用时需要替换为真实的appId
+                        timestamp: new Date().getTime(),
+                        nonceStr: 'conference' + Math.random().toString(36).substr(2, 9),
+                        signature: 'signature', // 实际使用时需要后端生成
+                        jsApiList: ['openLocation', 'getLocation']
+                    });
+                    
+                    wx.ready(function() {
+                        console.log('✅ 微信JS-SDK配置成功');
+                        
+                        try {
+                            // 直接调用微信内置导航
+                            wx.openLocation({
+                                latitude: lat,
+                                longitude: lng,
+                                name: hotelName,
+                                address: hotelAddress,
+                                scale: 18,
+                                infoUrl: ''
+                            });
+                            console.log('🚀 微信导航调用成功');
+                        } catch (error) {
+                            console.error('❌ 微信导航调用失败:', error);
+                            // 降级到备选方案
+                            showNavigationOptions(hotelName, hotelAddress);
+                        }
+                    });
+                    
+                    wx.error(function(res) {
+                        console.error('❌ 微信JS-SDK配置失败:', res);
+                        // 降级到备选方案
+                        showNavigationOptions(hotelName, hotelAddress);
+                    });
+                    
+                } else {
+                    console.warn('⚠️ 微信JS-SDK未加载，使用备选方案');
+                    // 降级到备选方案
+                    showNavigationOptions(hotelName, hotelAddress);
+                }
+                
+            } else {
+                console.log('🌐 非微信环境，直接尝试打开地图应用');
+                
+                // 非微信环境，尝试直接打开高德地图
+                const amapUrl = `https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(hotelName)}&src=mypage&coordinate=gaode&callnative=1`;
+                
+                // 尝试打开地图应用，如果失败则显示网页版
+                window.location.href = amapUrl;
+                
+                // 2秒后检查是否成功跳转，如果没成功则显示备选方案
+                setTimeout(() => {
+                    showNavigationOptions(hotelName, hotelAddress);
+                }, 2000);
+            }
+        }
+
+        // 显示导航选项弹窗
+        function showNavigationOptions(hotelName, hotelAddress) {
+            console.log('📋 显示导航选项...');
+            
+            // 移除已存在的弹窗
+            const existingModal = document.getElementById('navigation-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // 创建弹窗HTML
+            const modalHTML = `
+                <div id="navigation-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-2xl p-6 w-[90%] max-w-md mx-4">
+                        <div class="text-center mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">选择导航方式</h3>
+                            <p class="text-gray-600 text-sm">请选择您偏好的地图应用进行导航</p>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <!-- 高德地图 -->
+                            <button onclick="openMapApp('amap', '${encodeURIComponent(hotelName)}', '${encodeURIComponent(hotelAddress)}')" 
+                                    class="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 px-4 rounded-xl transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+                                        <span class="text-white font-bold">高德</span>
+                                    </div>
+                                    <span class="font-medium">高德地图</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                            </button>
+                            
+                            <!-- 百度地图 -->
+                            <button onclick="openMapApp('baidu', '${encodeURIComponent(hotelName)}', '${encodeURIComponent(hotelAddress)}')" 
+                                    class="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 px-4 rounded-xl transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                                        <span class="text-white font-bold">百度</span>
+                                    </div>
+                                    <span class="font-medium">百度地图</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                            </button>
+                            
+                            <!-- 腾讯地图 -->
+                            <button onclick="openMapApp('tencent', '${encodeURIComponent(hotelName)}', '${encodeURIComponent(hotelAddress)}')" 
+                                    class="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 px-4 rounded-xl transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                                        <span class="text-white font-bold">腾讯</span>
+                                    </div>
+                                    <span class="font-medium">腾讯地图</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- 提示信息 -->
+                        <div class="mt-6 p-4 bg-yellow-50 rounded-lg">
+                            <div class="flex items-start">
+                                <i data-lucide="info" class="w-5 h-5 text-yellow-500 mr-2 mt-0.5"></i>
+                                <p class="text-sm text-gray-700">
+                                    如果点击后没有反应，请复制酒店地址在地图应用中搜索：<br>
+                                    <span class="font-medium">${hotelAddress}</span>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- 微信导航按钮 -->
+                        <button onclick="useWeChatNavigation('${encodeURIComponent(hotelName)}', '${encodeURIComponent(hotelAddress)}')" 
+                                class="w-full mt-4 bg-green-600 text-white py-3 px-4 rounded-xl hover:bg-green-700 transition-colors font-medium">
+                            <div class="flex items-center justify-center">
+                                <i data-lucide="map-pin" class="w-5 h-5 mr-2"></i>
+                                <span>使用微信内置导航</span>
+                            </div>
+                        </button>
+                                    <span class="font-medium">${hotelAddress}</span>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- 取消按钮 -->
+                        <button onclick="closeNavigationModal()" 
+                                class="w-full mt-6 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-colors">
+                            取消
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // 添加弹窗到页面
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // 重新渲染图标
+            lucide.createIcons();
+            
+            console.log('✅ 导航选项弹窗已显示');
+        }
+
+        // 打开地图应用
+        function openMapApp(mapType, hotelName, hotelAddress) {
+            console.log(`🚀 尝试打开${mapType}地图...`);
+            
+            let mapUrl = '';
+            const lat = '20.045196'; // 酒店纬度
+            const lng = '110.358844'; // 酒店经度
+            
+            try {
+                switch (mapType) {
+                    case 'amap':
+                        // 高德地图
+                        mapUrl = `https://uri.amap.com/marker?position=${lng},${lat}&name=${hotelName}&src=mypage&coordinate=gaode&callnative=1`;
+                        break;
+                    case 'baidu':
+                        // 百度地图（需要转换坐标系）
+                        mapUrl = `https://api.map.baidu.com/marker?location=${lat},${lng}&title=${hotelName}&content=${hotelAddress}&output=html&src=mypage`;
+                        break;
+                    case 'tencent':
+                        // 腾讯地图
+                        mapUrl = `https://apis.map.qq.com/uri/v1/marker?marker=coord:${lat},${lng};title:${hotelName};addr:${hotelAddress}`;
+                        break;
+                }
+                
+                console.log(`🌏 地图URL: ${mapUrl}`);
+                
+                // 尝试打开地图应用
+                window.location.href = mapUrl;
+                
+                // 2秒后关闭弹窗
+                setTimeout(() => {
+                    closeNavigationModal();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('❌ 打开地图应用失败:', error);
+                
+                // 显示错误提示
+                alert('打开地图应用失败，请手动搜索酒店地址：' + decodeURIComponent(hotelAddress));
+                closeNavigationModal();
+            }
+        }
+
+        // 关闭导航弹窗
+        function closeNavigationModal() {
+            console.log('❌ 关闭导航弹窗');
+            
+            const modal = document.getElementById('navigation-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // 使用微信导航
+        function useWeChatNavigation(hotelName, hotelAddress) {
+            console.log('🔄 使用微信内置导航...');
+            
+            const lat = 20.045196; // 酒店纬度
+            const lng = 110.358844; // 酒店经度
+            
+            hotelName = decodeURIComponent(hotelName);
+            hotelAddress = decodeURIComponent(hotelAddress);
+            
+            console.log(`🏨 目标酒店: ${hotelName}`);
+            console.log(`📍 酒店地址: ${hotelAddress}`);
+            
+            if (typeof wx !== 'undefined') {
+                console.log('✅ 调用微信openLocation接口');
+                
+                try {
+                    wx.openLocation({
+                        latitude: lat,
+                        longitude: lng,
+                        name: hotelName,
+                        address: hotelAddress,
+                        scale: 18,
+                        infoUrl: ''
+                    });
+                    
+                    console.log('🚀 微信导航调用成功');
+                    closeNavigationModal();
+                    
+                } catch (error) {
+                    console.error('❌ 微信导航调用失败:', error);
+                    
+                    if (error.message.includes('function not exist')) {
+                        alert('微信导航功能不可用，请尝试其他导航方式');
+                    } else {
+                        alert('导航失败，请重试');
+                    }
+                }
+                
+            } else {
+                console.error('❌ 微信JS-SDK未加载');
+                alert('微信环境异常，请刷新页面重试');
+            }
+        }
+
+        // Define switchSlide globally to fix the ReferenceError
+        let currentSlide = 0;
+        let slidesContainer, dotsContainer, dots, images;
+
+        // Simplified function to update dots position
+        function updateDotsPosition() {
+            if (!slidesContainer || !dotsContainer || !images.length) return;
+            
+            const currentImage = images[currentSlide];
+            const imageHeight = currentImage.offsetHeight;
+            
+            console.log(`📐 更新指示器位置。当前图片索引: ${currentSlide}, 图片高度: ${imageHeight}px`);
+            
+            // Reset any inline styles that might interfere
+            dotsContainer.style.cssText = '';
+            
+            console.log(`✅ 指示器位置已更新`);
+        }
+
+        // switchSlide函数已在页面头部定义
+
+        // Simple initialization when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔄 轮播图初始化开始。');
+            
+            // Get elements
+            slidesContainer = document.getElementById('simple-carousel-slides');
+            dotsContainer = document.getElementById('simple-carousel-dots');
+            dots = dotsContainer.querySelectorAll('button');
+            images = slidesContainer.querySelectorAll('img');
+            
+            console.log('📊 轮播图元素状态:');
+            console.log('- slidesContainer:', slidesContainer);
+            console.log('- dotsContainer:', dotsContainer);
+            console.log('- dots数量:', dots.length);
+            console.log('- images数量:', images.length);
+            
+            // Initialize touch events for swipe functionality
+            if (slidesContainer) {
+                let touchStartX = 0;
+                let touchEndX = 0;
+                const minSwipeDistance = 50; // Minimum distance to consider as a swipe
+                
+                slidesContainer.addEventListener('touchstart', function(e) {
+                    touchStartX = e.touches[0].clientX;
+                    console.log('👆 触摸开始，X坐标:', touchStartX);
+        
+                
+                slidesContainer.addEventListener('touchmove', function(e) {
+                    touchEndX = e.touches[0].clientX;
+        
+                
+                slidesContainer.addEventListener('touchend', function() {
+                    console.log('👋 触摸结束，开始X坐标:', touchStartX, '结束X坐标:', touchEndX);
+                    
+                    const swipeDistance = touchEndX - touchStartX;
+                    console.log('📏 滑动距离:', swipeDistance);
+                    
+                    // Check if swipe distance is greater than minimum threshold
+                    if (Math.abs(swipeDistance) > minSwipeDistance) {
+                        if (swipeDistance > 0) {
+                            // Swipe right
+                            console.log('↪️ 向右滑动');
+                            const prevSlide = currentSlide > 0 ? currentSlide - 1 : dots.length - 1;
+                            window.switchSlide(prevSlide);
+                        } else {
+                            // Swipe left
+                            console.log('↩️ 向左滑动');
+                            const nextSlide = currentSlide < dots.length - 1 ? currentSlide + 1 : 0;
+                            window.switchSlide(nextSlide);
+                        }
+                    } else {
+                        console.log('➖ 滑动距离过小，不触发切换');
+                    }
+        
+                
+                console.log('✅ 手势滑动功能已初始化');
+            }
+            
+            console.log('✅ 轮播图初始化完成。');
+
+
+        // Ensure there is a test user
+        const ensureTestUser = () => {
+            const users = JSON.parse(localStorage.getItem('conferenceUsers') || '[]');
+            // Remove any existing test user to ensure fresh data
+            const filteredUsers = users.filter(u => u.name !== '测试');
+            // Add fresh test user
+            filteredUsers.push({ 
+                name: '测试', 
+                phone: '13800138000', 
+                hotel: '酒店A',
+                seatNumber: 'A区 01',
+                mealNumber: '第 1 桌'
+    
+            localStorage.setItem('conferenceUsers', JSON.stringify(filteredUsers));
+            console.log('Test user refreshed.');
+        };
+        ensureTestUser();
+
+        const pages = ['login-page', 'conference-center-page', 'conference-intro-page', 'meeting-schedule-page', 'conference-route-page', 'image-text-live-page', 'seat-food-hotel-page', 'hotel-map-page'];
+
+        function showPage(pageId) {
+            pages.forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+    
+            document.getElementById(pageId).classList.remove('hidden');
+            lucide.createIcons();
+            
+            // Update seat/meal info when entering seat-food-hotel page
+            if (pageId === 'seat-food-hotel-page') {
+                console.log('🔄 进入座位/餐席/酒店页面，准备加载用户信息');
+                
+                // Force scroll to top immediately
+                window.scrollTo(0, 0);
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+                
+                // Get the main container of the page and scroll it to top
+                const mainContainer = document.querySelector('#seat-food-hotel-page main');
+                if (mainContainer) {
+                    mainContainer.scrollTop = 0;
+                    console.log('✅ 页面主容器已滚动到顶部');
+                }
+                
+                // Get cached user name
+                const cachedName = localStorage.getItem('cachedUserName');
+                if (cachedName) {
+                    console.log('📱 当前登录用户:', cachedName);
+                    
+                    // Get users from localStorage
+                    const users = JSON.parse(localStorage.getItem('conferenceUsers') || '[]');
+                    const user = users.find(u => u.name === cachedName);
+                    
+                    if (user) {
+                        console.log('✅ 找到用户信息:', user);
+                        
+                        // Get all sections
+                        const meetingSeatSection = document.querySelector('#seat-food-hotel-page .mb-8:nth-of-type(1)');
+                        const lunchSeatSection = document.querySelector('#seat-food-hotel-page .mb-8:nth-of-type(2)');
+                        const hotelSection = document.querySelector('#seat-food-hotel-page .mb-8:nth-of-type(3)');
+                        
+                        // Update and show/hide meeting seat section
+                        const userSeatNumberElement = document.getElementById('user-seat-number');
+                        if (userSeatNumberElement) {
+                            if (user.seatNumber) {
+                                userSeatNumberElement.textContent = user.seatNumber;
+                                userSeatNumberElement.style.color = '#FDE047';
+                                console.log('✅ 已更新会议坐席号:', user.seatNumber);
+                            } else {
+                                userSeatNumberElement.textContent = '暂未分配';
+                                userSeatNumberElement.style.color = '#9CA3AF';
+                                console.log('❌ 未找到会议坐席信息');
+                            }
+                        }
+                        
+                        // Update and show/hide lunch seat section
+                        const userMealNumberElement = document.getElementById('user-meal-number');
+                        if (userMealNumberElement) {
+                            if (user.mealNumber) {
+                                userMealNumberElement.textContent = user.mealNumber;
+                                userMealNumberElement.style.color = '#FDE047';
+                                console.log('✅ 已更新午餐坐席号:', user.mealNumber);
+                            } else {
+                                userMealNumberElement.textContent = '暂未分配';
+                                userMealNumberElement.style.color = '#9CA3AF';
+                                console.log('❌ 未找到午餐坐席信息');
+                            }
+                        }
+                        
+                        // Update and show/hide hotel section
+                        const hotelInfoElement = document.getElementById('hotel-info');
+                        const navButton = document.getElementById('hotel-nav-button');
+                        const hotelSection = hotelInfoElement ? hotelInfoElement.closest('.mb-8') : null;
+                        
+                        if (hotelSection) {
+                            if (user.hotel) {
+                                // 有酒店信息时显示整个区域
+                                hotelSection.style.display = 'block';
+                                if (hotelInfoElement) {
+                                    hotelInfoElement.textContent = user.hotel;
+                                    hotelInfoElement.classList.remove('hidden');
+                                }
+                                if (navButton) {
+                                    navButton.style.display = 'block';
+                                }
+                                console.log('✅ 显示酒店信息区域:', user.hotel);
+                            } else {
+                                // 无酒店信息时隐藏整个区域
+                                hotelSection.style.display = 'none';
+                                console.log('❌ 隐藏酒店信息区域（无酒店数据）');
+                            }
+                        } else {
+                            console.log('❌ 未找到酒店信息区域');
+                        }
+                    } else {
+                        console.log('❌ 未找到用户信息');
+                    }
+                } else {
+                    console.log('❌ 未找到缓存的用户名');
+                }
+                
+                // Scroll to top of page again after content is loaded to ensure it's at the top
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                    const mainContainer = document.querySelector('#seat-food-hotel-page main');
+                    if (mainContainer) {
+                        mainContainer.scrollTop = 0;
+                    }
+                    console.log('🔄 延迟滚动到顶部，确保内容加载后页面位置正确');
+                }, 100);
+            }
+            
+            // Reset carousel to first slide when entering meeting schedule page
+            if (pageId === 'meeting-schedule-page') {
+                console.log('🔄 重新进入会议日程页面，重置轮播图到第一张');
+                
+                // Scroll to top of page
+                console.log('📱 滚动页面到顶部');
+                // Get the main container of the page
+                const mainContainer = document.querySelector('#meeting-schedule-page main');
+                if (mainContainer) {
+                    mainContainer.scrollTop = 0;
+                    console.log('✅ 页面主容器已滚动到顶部');
+                }
+                // Also scroll window to top for safety
+                window.scrollTo(0, 0);
+                // For older browsers
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+                // Reset current slide index
+                currentSlide = 0;
+                
+                // Get elements if not already initialized
+                if (!slidesContainer) {
+                    slidesContainer = document.getElementById('simple-carousel-slides');
+                    dotsContainer = document.getElementById('simple-carousel-dots');
+                    dots = dotsContainer.querySelectorAll('button');
+                    images = slidesContainer.querySelectorAll('img');
+                }
+                
+                // Update slide position to first slide
+                if (slidesContainer) {
+                    slidesContainer.style.transform = 'translateX(0%)';
+                }
+                
+                // Update dots to show first slide as active
+                if (dots) {
+                    dots.forEach((dot, i) => {
+                        if (i === 0) {
+                            dot.classList.remove('bg-gray-300');
+                            dot.classList.add('bg-blue-500');
+                        } else {
+                            dot.classList.remove('bg-blue-500');
+                            dot.classList.add('bg-gray-300');
+                        }
+            
+                }
+                
+                // Set carousel height based on first image
+                if (images && images.length > 0 && slidesContainer) {
+                    const firstImage = images[0];
+                    const simpleCarousel = document.getElementById('simple-carousel');
+                    
+                    // Force reflow to ensure correct dimensions
+                    simpleCarousel.style.height = 'auto';
+                    simpleCarousel.offsetHeight; // Trigger reflow
+                    
+                    console.log('📐 重新进入会议日程页面，准备设置轮播图高度');
+                    console.log('📊 图片状态检查:');
+                    console.log('- 图片是否完成加载:', firstImage.complete);
+                    console.log('- 当前图片高度:', firstImage.offsetHeight, 'px');
+                    console.log('- 图片自然高度:', firstImage.naturalHeight, 'px');
+                    
+                    // Check if image is loaded and has valid dimensions
+                    if (firstImage.complete && firstImage.offsetHeight > 0) {
+                        simpleCarousel.style.height = `${firstImage.offsetHeight}px`;
+                        console.log('🎯 重置到第一张幻灯片，高度设置为:', firstImage.offsetHeight, 'px');
+                    } else {
+                        // Set a temporary height to ensure visibility
+                        simpleCarousel.style.height = '400px';
+                        console.log('⏳ 设置临时高度 400px，等待图片加载...');
+                        
+                        // Wait for image to load before setting actual height
+                        firstImage.addEventListener('load', function onImageLoad() {
+                            console.log('✅ 图片加载完成，实际高度:', firstImage.offsetHeight, 'px');
+                            simpleCarousel.style.height = `${firstImage.offsetHeight}px`;
+                            // Remove event listener to prevent multiple calls
+                            firstImage.removeEventListener('load', onImageLoad);
+                
+                    }
+                }
+            }
+        }
+
+        // 页面加载完成后立即执行
+        (function() {
+            console.log("页面初始化...");
+            
+            // 初始化LeanCloud
+            const LEANCLOUD_CONFIG = {
+                appId: 'LvwXAtkZBt8RI7UN8Jm7R5BL-gzGzoHsz',
+                appKey: 'zAMmBWOV5pnmH3KRsCvrRfJL',
+                masterKey: '9MN1GZLc3bAyGTstfB0X1RaJ',
+                serverURL: 'https://lvwxatkz.lc-cn-n1-shared.com'
+            };
+            
+            console.log("✅ 页面初始化完成");
+
+            
+            // 清除之前的缓存
+            localStorage.removeItem('cachedUserName');
+            localStorage.removeItem('currentUser');
+            
+            // 初始化测试用户数据到本地缓存
+            const testUsers = [
+                {
+                    name: '测试',
+                    phone: '13800138000',
+                    hotel: '酒店A',
+                    seatNumber: 'A区 01',
+                    mealNumber: '第 1 桌'
+                },
+                {
+                    name: '张三',
+                    phone: '13900139000',
+                    hotel: '酒店B',
+                    seatNumber: 'B区 02',
+                    mealNumber: '第 2 桌'
+                },
+                {
+                    name: '李四',
+                    phone: '13700137000',
+                    hotel: '酒店A',
+                    seatNumber: 'C区 03',
+                    mealNumber: '第 3 桌'
+                }
+            ];
+            
+            try {
+                localStorage.setItem('conferenceUsers', JSON.stringify(testUsers));
+                console.log('✅ 测试用户数据已初始化到本地缓存');
+            } catch (error) {
+                console.error('❌ 初始化测试用户数据失败:', error);
+            }
+            
+            // 清空输入框
+            document.getElementById('name-input').value = '';
+            
+            console.log("初始化完成！");
+        })();
+
+        // 从本地缓存获取用户信息
+        function getUserFromLocalCache(name) {
+            console.log('从本地缓存查询用户:', name);
+            try {
+                const users = JSON.parse(localStorage.getItem('conferenceUsers') || '[]');
+                const user = users.find(u => u.name === name);
+                if (user) {
+                    console.log('✅ 从本地缓存找到用户:', user);
+                    return user;
+                }
+                return null;
+            } catch (error) {
+                console.error('❌ 本地缓存查询失败:', error);
+                return null;
+            }
+        }
+
+        // 从LeanCloud获取用户信息
+        async function getUserFromLeanCloud(name) {
+            console.log('从LeanCloud查询用户:', name);
+            try {
+                const query = new AV.Query('user_list');
+                query.equalTo('name', name);
+                const users = await query.find();
+                console.log('LeanCloud查询结果:', users);
+                
+                if (users.length > 0) {
+                    const user = users[0];
+                    const userData = {
+                        name: user.get('name') || '',
+                        phone: user.get('phone') || '',
+                        hotel: user.get('hotel') || '',
+                        seatNumber: user.get('seatNumber') || '',
+                        mealNumber: user.get('mealNumber') || ''
+                    };
+                    
+                    // 更新本地缓存
+                    try {
+                        const cachedUsers = JSON.parse(localStorage.getItem('conferenceUsers') || '[]');
+                        const existingIndex = cachedUsers.findIndex(u => u.name === name);
+                        if (existingIndex >= 0) {
+                            cachedUsers[existingIndex] = userData;
+                        } else {
+                            cachedUsers.push(userData);
+                        }
+                        localStorage.setItem('conferenceUsers', JSON.stringify(cachedUsers));
+                        console.log('✅ 已更新本地缓存');
+                    } catch (cacheError) {
+                        console.error('❌ 更新本地缓存失败:', cacheError);
+                    }
+                    
+                    return userData;
+                }
+                return null;
+            } catch (error) {
+                console.error('❌ LeanCloud查询失败:', error);
+                // 网络错误时尝试从本地缓存获取
+                console.log('🔄 尝试从本地缓存获取用户信息');
+                return getUserFromLocalCache(name);
+            }
+        }
+
+        // 登录处理函数
+        async function handleLogin() {
+            console.log('🚀 登录函数被调用');
+            
+            const nameInput = document.getElementById('name-input');
+            const errorMessage = document.getElementById('error-message');
+            const loginButton = document.getElementById('login-button');
+            
+            if (!nameInput) {
+                console.error('❌ 未找到姓名输入框');
+                return;
+            }
+            
+            if (!errorMessage) {
+                console.error('❌ 未找到错误提示元素');
+            }
+            
+            if (!loginButton) {
+                console.error('❌ 未找到登录按钮元素');
+                return;
+            }
+            
+            console.log('✅ 所有必要元素都已找到');
+            
+            const name = nameInput.value.trim();
+            console.log('📋 输入的姓名:', name);
+            
+            // 隐藏错误信息
+            if (errorMessage) {
+                errorMessage.classList.add('hidden');
+            }
+            
+            if (!name) {
+                console.log('❌ 姓名为空');
+                if (errorMessage) {
+                    errorMessage.textContent = '请输入姓名';
+                    errorMessage.classList.remove('hidden');
+                    errorMessage.style.display = 'block';
+                }
+                return;
+            }
+            
+            try {
+                // 显示加载状态
+                loginButton.textContent = '登录中...';
+                loginButton.disabled = true;
+                
+                // 先尝试从本地缓存获取
+                let user = getUserFromLocalCache(name);
+                
+                if (!user) {
+                    console.log('🔄 本地缓存未找到，尝试从云端获取');
+                    // 从LeanCloud获取用户信息
+                    user = await getUserFromLeanCloud(name);
+                }
+                
+                if (user) {
+                    console.log('✅ 找到用户:', user);
+                    // 缓存用户信息
+                    localStorage.setItem('cachedUserName', name);
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                    // 跳转到会议中心
+                    showPage('conference-center-page');
+                } else {
+                    console.log('❌ 未找到用户');
+                    if (errorMessage) {
+                        // 显示测试账号提示
+                        errorMessage.innerHTML = `未查到姓名信息，请使用以下测试账号:<br>
+                        测试/13800138000<br>
+                        张三/13900139000<br>
+                        李四/13700137000<br>
+                        王五/13600136000<br>
+                        赵六/13500135000`;
+                        errorMessage.classList.remove('hidden');
+                        errorMessage.style.display = 'block';
+                        errorMessage.style.whiteSpace = 'pre-line';
+                    }
+                }
+            } catch (error) {
+                console.error('❌ 登录失败:', error);
+                if (errorMessage) {
+                    errorMessage.textContent = '查询失败，请检查网络连接后重试';
+                    errorMessage.classList.remove('hidden');
+                    errorMessage.style.display = 'block';
+                }
+            } finally {
+                // 恢复按钮状态
+                loginButton.textContent = '立即登录 / LOGIN';
+                loginButton.disabled = false;
+            }
+        }
+        
+        // 绑定登录按钮事件
+        function bindLoginButtonEvent() {
+            console.log('🔧 开始绑定登录按钮事件');
+            
+            const loginButton = document.getElementById('login-button');
+            if (!loginButton) {
+                console.error('❌ 无法找到登录按钮，事件绑定失败');
+                return;
+            }
+            
+            console.log('✅ 找到登录按钮，准备绑定点击事件');
+            
+            // 移除可能存在的旧事件监听器
+            loginButton.removeEventListener('click', handleLogin);
+            
+            // 绑定新的事件监听器
+            loginButton.addEventListener('click', handleLogin);
+            console.log('✅ 登录按钮点击事件绑定成功');
+            
+            // 立即测试事件绑定是否成功
+            console.log('🧪 测试：登录按钮事件监听器数量:', getEventListeners(loginButton).click?.length || 0);
+        }
+        
+        // 在页面加载完成后绑定事件
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎯 DOM加载完成，开始绑定事件');
+            bindLoginButtonEvent();
+
+        
+        // 立即尝试绑定（作为备用方案）
+        setTimeout(() => {
+            console.log('⏰ 备用方案：尝试绑定登录按钮事件');
+            bindLoginButtonEvent();
+        }, 100);
+        
+        // 为登录按钮添加直接的onclick属性作为最后保障
+        const loginButton = document.getElementById('login-button');
+        if (loginButton) {
+            loginButton.onclick = handleLogin;
+            console.log('🛡️ 已设置onclick属性作为备用');
+        }
+        
+        console.log('✅ 全局登录函数已注册');
+        
+        // 页面加载完成后检查轮播图中的用户名
+        setTimeout(() => {
+            const cachedUserName = localStorage.getItem('cachedUserName');
+            if (cachedUserName) {
+                console.log('🎯 页面加载完成，检查轮播图用户名高亮');
+                // 延迟调用以确保DOM完全加载
+                setTimeout(() => {
+                    if (typeof window.highlightUserInCarousel === 'function') {
+                        highlightUserInCarousel();
+                    }
+                }, 500);
+            }
+        }, 1000);
+
+
+
+        document.getElementById('logout-button').addEventListener('click', () => {
+            // Clear cached user name
+            localStorage.removeItem('cachedUserName');
+            // Clear input field
+            document.getElementById('name-input').value = '';
+            showPage('login-page');
+
+
+        document.querySelectorAll('.back-button').forEach(button => {
+            button.addEventListener('click', () => {
+                showPage('conference-center-page');
+    
+
+
+        // Add specific event listener for the intro card
+        document.getElementById('intro-card').addEventListener('click', () => {
+            console.log('Intro card clicked');
+            showPage('conference-intro-page');
+
+
+        // Add specific event listener for the live card
+        document.getElementById('live-card').addEventListener('click', () => {
+            console.log('Live card clicked');
+            window.location.href = 'https://example.com/live'; // Replace with your actual live stream URL
+
+
+        function navigateToHotel() {
+            const hotelName = '海口市星海湾铂尔曼酒店';
+            const wechatMapUrl = `weixin://viewmap/location?q=${encodeURIComponent(hotelName)}`;
+            window.location.href = wechatMapUrl;
+            setTimeout(() => {
+                alert('请使用微信打开此链接以获取导航。');
+            }, 1000);
+        }
+
+        document.querySelectorAll('.conference-info').forEach(card => {
+            card.addEventListener('click', () => {
+                const targetPage = card.dataset.target;
+                showPage(targetPage);
+    
+
+
+        // Simple Carousel Logic with Swipe and Logs
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('简易轮播图脚本已初始化。');
+
+            const slidesContainer = document.getElementById('simple-carousel-slides');
+            const dots = document.getElementById('simple-carousel-dots').querySelectorAll('button');
+            let currentSlide = 0;
+            let startX, moveX;
+            const threshold = 50; // Minimum swipe distance to trigger slide change
+
+            console.log('轮播图元素:', document.getElementById('simple-carousel'));
+            console.log('幻灯片容器:', slidesContainer);
+            console.log('指示器圆点数量:', dots.length);
+
+            // 高亮包含用户名的轮播图
+            // 将函数绑定到window对象，确保全局可访问
+            window.highlightUserInCarousel = function highlightUserInCarousel() {
+                console.log('🔍 开始检查轮播图中是否包含用户名');
+                
+                // 获取当前登录用户信息
+                const cachedUserName = localStorage.getItem('cachedUserName');
+                if (!cachedUserName) {
+                    console.log('ℹ️ 未找到缓存的用户名，跳过高亮');
+                    return;
+                }
+                
+                console.log('👤 当前登录用户:', cachedUserName);
+                
+                // 获取所有轮播图项
+                const slideItems = slidesContainer.querySelectorAll('.flex-shrink-0');
+                slideItems.forEach((item, index) => {
+                    const img = item.querySelector('img');
+                    if (img && img.alt) {
+                        console.log(`📊 检查轮播图 ${index} 标题: "${img.alt}"`);
+                        
+                        // 检查图片alt属性中是否包含用户名
+                        if (img.alt.includes(cachedUserName)) {
+                            console.log(`✅ 在轮播图 ${index} 中找到用户名 "${cachedUserName}"`);
+                            
+                            // 添加高亮效果
+                            item.style.position = 'relative';
+                            
+                            // 创建高亮背景
+                            const highlightBg = document.createElement('div');
+                            highlightBg.className = 'absolute inset-0 bg-yellow-300 bg-opacity-50 z-0';
+                            highlightBg.style.pointerEvents = 'none'; // 不影响点击
+                            
+                            // 插入到图片下方
+                            item.insertBefore(highlightBg, img);
+                            
+                            // 确保图片在上方
+                            img.style.position = 'relative';
+                            img.style.zIndex = '1';
+                            
+                            // 添加动画效果
+                            highlightBg.style.animation = 'pulse 2s infinite';
+                            
+                            // 高亮对应的指示器
+                            if (dots[index]) {
+                                dots[index].classList.add('ring-4', 'ring-yellow-400', 'ring-opacity-75');
+                                console.log(`✅ 高亮指示器 ${index}`);
+                            }
+                        }
+                    }
+                });
+            }
+
+            function updateCarousel() {
+                console.log('updateCarousel 方法被调用。当前幻灯片:', currentSlide);
+                slidesContainer.style.transform = `translateX(-${currentSlide * 100}%)`;
+                
+                // Update dots
+                dots.forEach((dot, index) => {
+                    if (index === currentSlide) {
+                        dot.classList.remove('bg-gray-300');
+                        dot.classList.add('bg-blue-500');
+                    } else {
+                        dot.classList.remove('bg-blue-500');
+                        dot.classList.add('bg-gray-300');
+                    }
+                });
+                
+                // 每次更新轮播图后检查是否需要高亮
+                setTimeout(() => {
+                    if (typeof window.highlightUserInCarousel === 'function') {
+                        highlightUserInCarousel();
+                    } else {
+                        console.warn('⚠️ highlightUserInCarousel 函数未定义');
+                    }
+                }, 100);
+            }
+                    } else {
+                        dot.classList.remove('bg-blue-500');
+                        dot.classList.add('bg-gray-300');
+                    }
+                });
+                
+                // 每次更新轮播图后检查是否需要高亮
+                setTimeout(() => {
+                    if (typeof window.highlightUserInCarousel === 'function') {
+                        highlightUserInCarousel();
+                    } else {
+                        console.warn('⚠️ highlightUserInCarousel 函数未定义');
+                    }
+                }, 100);
+            }
+
+            // Add click listeners to dots
+            console.log('正在为指示器圆点添加点击事件监听器。');
+            dots.forEach((dot, index) => {
+                dot.addEventListener('click', function() {
+                    console.log('指示器圆点被点击！索引:', index);
+                    currentSlide = index;
+                    updateCarousel();
+        
+    
+
+            // Touch and mouse events for swiping
+            const carousel = document.getElementById('simple-carousel');
+
+            // For mouse
+            carousel.addEventListener('mousedown', (e) => {
+                console.log('鼠标按下事件。客户端X坐标:', e.clientX);
+                startX = e.clientX;
+                carousel.style.cursor = 'grabbing';
+    
+
+            carousel.addEventListener('mouseleave', () => {
+                console.log('鼠标离开轮播图区域。');
+                carousel.style.cursor = 'grab';
+    
+
+            carousel.addEventListener('mouseup', (e) => {
+                console.log('鼠标松开事件。客户端X坐标:', e.clientX);
+                carousel.style.cursor = 'grab';
+                moveX = e.clientX;
+                const diffX = startX - moveX;
+                console.log('检测到鼠标滑动。起始X坐标:', startX, '结束X坐标:', moveX, '差值X:', diffX);
+                if (Math.abs(diffX) > threshold) {
+                    if (diffX > 0 && currentSlide < dots.length - 1) {
+                        console.log('向左滑动到下一张幻灯片。当前幻灯片:', currentSlide, '下一张幻灯片:', currentSlide + 1);
+                        currentSlide++;
+                    } else if (diffX < 0 && currentSlide > 0) {
+                        console.log('向右滑动到上一张幻灯片。当前幻灯片:', currentSlide, '上一张幻灯片:', currentSlide - 1);
+                        currentSlide--;
+                    } else {
+                        console.log('检测到滑动但未切换幻灯片。方向:', diffX > 0 ? '左' : '右', '当前幻灯片:', currentSlide);
+                    }
+                    updateCarousel();
+                } else {
+                    console.log('滑动距离低于阈值。阈值:', threshold, '实际距离:', Math.abs(diffX));
+                }
+    
+
+            carousel.addEventListener('mousemove', (e) => {
+                if (!startX) return;
+                e.preventDefault(); // Prevent text selection
+    
+
+            // For touch
+            carousel.addEventListener('touchstart', (e) => {
+                console.log('触摸开始事件。触摸X坐标:', e.touches[0].clientX);
+                startX = e.touches[0].clientX;
+    
+
+            carousel.addEventListener('touchend', (e) => {
+                console.log('触摸结束事件。触摸X坐标:', e.changedTouches[0].clientX);
+                moveX = e.changedTouches[0].clientX;
+                const diffX = startX - moveX;
+                console.log('检测到触摸滑动。起始X坐标:', startX, '结束X坐标:', moveX, '差值X:', diffX);
+                if (Math.abs(diffX) > threshold) {
+                    if (diffX > 0 && currentSlide < dots.length - 1) {
+                        console.log('触摸向左滑动到下一张幻灯片。当前幻灯片:', currentSlide, '下一张幻灯片:', currentSlide + 1);
+                        currentSlide++;
+                    } else if (diffX < 0 && currentSlide > 0) {
+                        console.log('触摸向右滑动到上一张幻灯片。当前幻灯片:', currentSlide, '上一张幻灯片:', currentSlide - 1);
+                        currentSlide--;
+                    }
+                    updateCarousel();
+                }
+    
+
+            console.log('简易轮播图已完全初始化，支持滑动和日志输出。');
+
+
+    </script>
+
+
+</body></html>
